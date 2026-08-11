@@ -1,11 +1,62 @@
 """Tests for the Google Home API client."""
 
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from zeroconf import Zeroconf
 
 from custom_components.google_home.models import GoogleHomeDevice
 
-from .helpers import make_client
+from .helpers import make_client, make_client_with_addresses
+
+
+class TestGetGoogleDevices(IsolatedAsyncioTestCase):
+    """Test glocaltokens discovery arguments."""
+
+    async def test_absent_mapping_uses_exact_stock_call(self) -> None:
+        """An absent mapping adds no arguments to the stock discovery call."""
+        zeroconf_instance = MagicMock(spec=Zeroconf)
+        client, glocaltokens_client = make_client()
+        client.zeroconf_instance = zeroconf_instance
+        glocaltokens_client.get_google_devices.return_value = []
+
+        await client.get_google_devices()
+
+        glocaltokens_client.get_google_devices.assert_called_once_with(
+            zeroconf_instance=zeroconf_instance,
+            force_homegraph_reload=True,
+        )
+
+    async def test_empty_mapping_uses_exact_stock_call(self) -> None:
+        """An empty mapping adds no arguments to the stock discovery call."""
+        zeroconf_instance = MagicMock(spec=Zeroconf)
+        client, glocaltokens_client = make_client_with_addresses({}, zeroconf_instance)
+        glocaltokens_client.get_google_devices.return_value = []
+
+        await client.get_google_devices()
+
+        glocaltokens_client.get_google_devices.assert_called_once_with(
+            zeroconf_instance=zeroconf_instance,
+            force_homegraph_reload=True,
+        )
+
+    async def test_nonempty_mapping_disables_discovery_for_all_devices(self) -> None:
+        """A non-empty mapping switches the whole call to manual mode."""
+        zeroconf_instance = MagicMock(spec=Zeroconf)
+        addresses = {"Kitchen speaker": "192.0.2.50"}
+        client, glocaltokens_client = make_client_with_addresses(
+            addresses, zeroconf_instance
+        )
+        glocaltokens_client.get_google_devices.return_value = []
+
+        await client.get_google_devices()
+
+        glocaltokens_client.get_google_devices.assert_called_once_with(
+            addresses=addresses,
+            disable_discovery=True,
+            zeroconf_instance=zeroconf_instance,
+            force_homegraph_reload=True,
+        )
 
 
 class TestUpdateGoogleDevicesInformation(IsolatedAsyncioTestCase):

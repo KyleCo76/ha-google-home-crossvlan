@@ -32,6 +32,8 @@ from .exceptions import InvalidMasterToken
 from .models import GoogleHomeDevice
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from zeroconf import Zeroconf
 
     from homeassistant.core import HomeAssistant
@@ -53,6 +55,7 @@ class GlocaltokensApiClient:
         master_token: str | None = None,
         android_id: str | None = None,
         zeroconf_instance: Zeroconf | None = None,
+        device_addresses: Mapping[str, str] | None = None,
     ):
         """Sample API Client."""
         self.hass = hass
@@ -71,6 +74,12 @@ class GlocaltokensApiClient:
         self.google_devices: list[GoogleHomeDevice] = []
         self._missing_ip_warning_device_ids: set[str] = set()
         self.zeroconf_instance = zeroconf_instance
+        self._device_addresses = dict(device_addresses or {})
+
+    @property
+    def device_addresses(self) -> dict[str, str]:
+        """Return a copy of the configured exact-name address mapping."""
+        return self._device_addresses.copy()
 
     async def async_get_master_token(self) -> str:
         """Get master API token."""
@@ -103,6 +112,13 @@ class GlocaltokensApiClient:
         if not self.google_devices:
 
             def _get_google_devices() -> list[Device]:
+                if self._device_addresses:
+                    return self._client.get_google_devices(
+                        addresses=self._device_addresses,
+                        disable_discovery=True,
+                        zeroconf_instance=self.zeroconf_instance,
+                        force_homegraph_reload=True,
+                    )
                 return self._client.get_google_devices(
                     zeroconf_instance=self.zeroconf_instance,
                     force_homegraph_reload=True,

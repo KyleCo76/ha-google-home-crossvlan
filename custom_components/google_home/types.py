@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 
@@ -89,6 +89,7 @@ class OptionsFlowDict(TypedDict):
     """Typed dict for options flow handler."""
 
     update_interval: int
+    device_addresses: NotRequired[dict[str, str]]
 
 
 type JsonDict = Mapping[

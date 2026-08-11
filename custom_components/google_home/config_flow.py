@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from ipaddress import IPv4Address
 import logging
 from typing import TYPE_CHECKING, Self
 
@@ -10,11 +12,13 @@ import voluptuous as vol
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import GlocaltokensApiClient
 from .const import (
     CONF_ANDROID_ID,
+    CONF_DEVICE_ADDRESSES,
     CONF_MASTER_TOKEN,
     CONF_PASSWORD,
     CONF_UPDATE_INTERVAL,
@@ -30,6 +34,25 @@ if TYPE_CHECKING:
     from .types import ConfigFlowDict, GoogleHomeConfigEntry, OptionsFlowDict
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
+
+
+def validate_device_addresses(value: object) -> dict[str, str]:
+    """Validate and copy an exact-name to IPv4-address mapping."""
+    if not isinstance(value, Mapping):
+        raise vol.Invalid("Device addresses must be a mapping")
+
+    validated: dict[str, str] = {}
+    for name, address in value.items():
+        if not isinstance(name, str) or not name.strip():
+            raise vol.Invalid("Device names must be non-empty strings")
+        if not isinstance(address, str):
+            raise vol.Invalid("Device addresses must be strings")
+        try:
+            IPv4Address(address)
+        except ValueError as err:
+            raise vol.Invalid("Device addresses must be valid IPv4 addresses") from err
+        validated[name] = address
+    return validated
 
 
 class GoogleHomeFlowHandler(ConfigFlow, domain=DOMAIN):
@@ -156,8 +179,21 @@ class GoogleHomeOptionsFlowHandler(OptionsFlow):
         self, user_input: OptionsFlowDict | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+        defaults: Mapping[str, object] = self.config_entry.options
+
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            defaults = user_input
+            try:
+                device_addresses = validate_device_addresses(
+                    user_input.get(CONF_DEVICE_ADDRESSES, {})
+                )
+            except vol.Invalid:
+                errors[CONF_DEVICE_ADDRESSES] = "invalid_device_addresses"
+            else:
+                if CONF_DEVICE_ADDRESSES in user_input:
+                    user_input[CONF_DEVICE_ADDRESSES] = device_addresses
+                return self.async_create_entry(data=user_input)
 
         return self.async_show_form(
             step_id="init",
@@ -165,10 +201,13 @@ class GoogleHomeOptionsFlowHandler(OptionsFlow):
                 {
                     vol.Optional(
                         CONF_UPDATE_INTERVAL,
-                        default=self.config_entry.options.get(
-                            CONF_UPDATE_INTERVAL, UPDATE_INTERVAL
-                        ),
+                        default=defaults.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL),
                     ): int,
+                    vol.Optional(
+                        CONF_DEVICE_ADDRESSES,
+                        default=defaults.get(CONF_DEVICE_ADDRESSES, {}),
+                    ): selector.ObjectSelector(),
                 }
             ),
+            errors=errors,
         )

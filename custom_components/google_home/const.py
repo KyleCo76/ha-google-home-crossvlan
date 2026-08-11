@@ -14,6 +14,7 @@ MANUFACTURER: Final = "Google Home"
 
 ATTRIBUTION: Final = "json"
 ISSUE_URL: Final = "https://github.com/leikoilja/ha-google-home/issues"
+CONF_DEVICE_ADDRESSES: Final = "device_addresses"
 CONF_UPDATE_INTERVAL: Final = "update_interval"
 
 DATA_CLIENT: Final = "client"

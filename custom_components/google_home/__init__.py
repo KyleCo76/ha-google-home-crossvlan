@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .api import GlocaltokensApiClient
 from .const import (
     CONF_ANDROID_ID,
+    CONF_DEVICE_ADDRESSES,
     CONF_MASTER_TOKEN,
     CONF_UPDATE_INTERVAL,
     DATA_CLIENT,
@@ -48,6 +49,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) -
     update_interval = cast(
         "int", entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
     )
+    device_addresses = cast(
+        "dict[str, str]", entry.options.get(CONF_DEVICE_ADDRESSES, {})
+    )
 
     _LOGGER.debug(
         "Coordinator update interval is: %s", timedelta(seconds=update_interval)
@@ -64,6 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) -
         master_token=master_token,
         android_id=android_id,
         zeroconf_instance=zeroconf_instance,
+        device_addresses=device_addresses,
     )
 
     coordinator = DataUpdateCoordinator(
@@ -99,6 +104,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) 
 
 async def async_update_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) -> None:
     """Update config entry."""
+    client: GlocaltokensApiClient = hass.data[DOMAIN][entry.entry_id][DATA_CLIENT]
+    device_addresses = cast(
+        "dict[str, str]", entry.options.get(CONF_DEVICE_ADDRESSES, {})
+    )
+    if device_addresses != client.device_addresses:
+        _LOGGER.debug("Device addresses updated, scheduling config entry reload...")
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
+
     _LOGGER.debug("Options updated, updating coordinator interval...")
     update_interval: int = entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
     coordinator: DataUpdateCoordinator[list[GoogleHomeDevice]] = hass.data[DOMAIN][
