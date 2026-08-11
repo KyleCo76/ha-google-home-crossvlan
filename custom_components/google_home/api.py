@@ -69,6 +69,7 @@ class GlocaltokensApiClient:
             verbose=verbose,
         )
         self.google_devices: list[GoogleHomeDevice] = []
+        self._missing_ip_warning_device_ids: set[str] = set()
         self.zeroconf_instance = zeroconf_instance
 
     async def async_get_master_token(self) -> str:
@@ -143,27 +144,30 @@ class GlocaltokensApiClient:
 
         devices = await self.get_google_devices()
 
-        # Gives the user a warning if the device is offline
         for device in devices:
-            if not device.ip_address and device.available:
-                device.available = False
-                _LOGGER.debug(
-                    (
-                        "Failed to fetch timers/alarms information "
-                        "from device %s. We could not determine its IP address, "
-                        "the device is either offline or is not compatible "
-                        "Google Home device. Will try again later."
-                    ),
-                    device.name,
-                )
+            if device.ip_address:
+                continue
 
-        return await asyncio.gather(
-            *[
+            device.available = False
+            if device.device_id in self._missing_ip_warning_device_ids:
+                continue
+
+            self._missing_ip_warning_device_ids.add(device.device_id)
+            _LOGGER.warning(
+                "Failed to fetch timers/alarms because no IP address was found. "
+                "Google-reported device name: %s. Use this exact, case- and "
+                "spacing-sensitive name for a manual device-address mapping.",
+                device.name,
+            )
+
+        await asyncio.gather(
+            *(
                 self.collect_data_from_endpoints(device)
                 for device in devices
                 if device.ip_address and device.auth_token
-            ]
+            )
         )
+        return devices
 
     async def collect_data_from_endpoints(
         self, device: GoogleHomeDevice
