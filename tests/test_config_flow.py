@@ -16,6 +16,7 @@ from custom_components.google_home.config_flow import (
 )
 from custom_components.google_home.const import (
     CONF_DEVICE_ADDRESSES,
+    CONF_REQUEST_TIMEOUT,
     CONF_UPDATE_INTERVAL,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -163,3 +164,20 @@ class TestGoogleHomeOptionsFlowHandler(IsolatedAsyncioTestCase):
 
                 assert result["type"] is FlowResultType.CREATE_ENTRY
                 assert result["data"] == user_input
+
+    async def test_request_timeout_defaults_to_ten_and_requires_positive_int(
+        self,
+    ) -> None:
+        """The request timeout form field defaults to 10 and rejects non-positive values."""
+        flow = _make_options_flow()
+
+        result = await flow.async_step_init()
+
+        data_schema = cast("vol.Schema", result["data_schema"])
+        assert data_schema({})[CONF_REQUEST_TIMEOUT] == 10
+        for invalid_timeout in (0, -1):
+            with (
+                self.subTest(invalid_timeout=invalid_timeout),
+                pytest.raises(vol.Invalid),
+            ):
+                data_schema({CONF_REQUEST_TIMEOUT: invalid_timeout})

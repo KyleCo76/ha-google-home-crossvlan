@@ -24,14 +24,16 @@ class ImmediateExecutor:
         return target()
 
 
-def make_client() -> tuple[GlocaltokensApiClient, MagicMock]:
+def make_client(
+    *, session: ClientSession | None = None
+) -> tuple[GlocaltokensApiClient, MagicMock]:
     """Create an API client without constructing a real glocaltokens client."""
     with patch(
         "custom_components.google_home.api.GLocalAuthenticationTokens"
     ) as client_class:
         client = GlocaltokensApiClient(
             hass=cast("HomeAssistant", ImmediateExecutor()),
-            session=cast("ClientSession", MagicMock()),
+            session=session or cast("ClientSession", MagicMock()),
         )
     return client, client_class.return_value
 
@@ -49,5 +51,22 @@ def make_client_with_addresses(
             session=cast("ClientSession", MagicMock()),
             zeroconf_instance=zeroconf_instance,
             device_addresses=device_addresses,
+        )
+    return client, client_class.return_value
+
+
+def make_client_with_timeout(
+    request_timeout: int,
+    *,
+    session: ClientSession | None = None,
+) -> tuple[GlocaltokensApiClient, MagicMock]:
+    """Create an API client with a request timeout."""
+    with patch(
+        "custom_components.google_home.api.GLocalAuthenticationTokens"
+    ) as client_class:
+        client = GlocaltokensApiClient(
+            hass=cast("HomeAssistant", ImmediateExecutor()),
+            session=session or cast("ClientSession", MagicMock()),
+            request_timeout=request_timeout,
         )
     return client, client_class.return_value

@@ -21,11 +21,13 @@ from .const import (
     CONF_DEVICE_ADDRESSES,
     CONF_MASTER_TOKEN,
     CONF_PASSWORD,
+    CONF_REQUEST_TIMEOUT,
     CONF_UPDATE_INTERVAL,
     CONF_USERNAME,
     DOMAIN,
     MANUFACTURER,
     MAX_PASSWORD_LENGTH,
+    TIMEOUT,
     UPDATE_INTERVAL,
 )
 from .exceptions import InvalidMasterToken
@@ -207,6 +209,10 @@ class GoogleHomeOptionsFlowHandler(OptionsFlow):
                         CONF_DEVICE_ADDRESSES,
                         default=defaults.get(CONF_DEVICE_ADDRESSES, {}),
                     ): selector.ObjectSelector(),
+                    vol.Optional(
+                        CONF_REQUEST_TIMEOUT,
+                        default=defaults.get(CONF_REQUEST_TIMEOUT, TIMEOUT),
+                    ): vol.All(int, vol.Range(min=1)),
                 }
             ),
             errors=errors,

@@ -56,6 +56,7 @@ class GlocaltokensApiClient:
         android_id: str | None = None,
         zeroconf_instance: Zeroconf | None = None,
         device_addresses: Mapping[str, str] | None = None,
+        request_timeout: int = TIMEOUT,
     ):
         """Sample API Client."""
         self.hass = hass
@@ -75,11 +76,22 @@ class GlocaltokensApiClient:
         self._missing_ip_warning_device_ids: set[str] = set()
         self.zeroconf_instance = zeroconf_instance
         self._device_addresses = dict(device_addresses or {})
+        self._request_timeout = request_timeout
 
     @property
     def device_addresses(self) -> dict[str, str]:
         """Return a copy of the configured exact-name address mapping."""
         return self._device_addresses.copy()
+
+    @property
+    def request_timeout(self) -> int:
+        """Return the effective device request timeout in seconds."""
+        return self._request_timeout
+
+    @request_timeout.setter
+    def request_timeout(self, value: int) -> None:
+        """Update the effective device request timeout in seconds."""
+        self._request_timeout = value
 
     async def async_get_master_token(self) -> str:
         """Get master API token."""
@@ -446,7 +458,7 @@ class GlocaltokensApiClient:
         resp = None
 
         try:
-            timeout = ClientTimeout(total=TIMEOUT)
+            timeout = ClientTimeout(total=self.request_timeout)
             async with self._session.request(
                 method, url, json=data, headers=headers, timeout=timeout
             ) as response:

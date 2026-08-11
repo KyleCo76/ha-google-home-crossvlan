@@ -89,6 +89,7 @@ class OptionsFlowDict(TypedDict):
     """Typed dict for options flow handler."""
 
     update_interval: int
+    request_timeout: int
     device_addresses: NotRequired[dict[str, str]]
 
 

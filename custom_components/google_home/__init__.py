@@ -19,6 +19,7 @@ from .const import (
     CONF_ANDROID_ID,
     CONF_DEVICE_ADDRESSES,
     CONF_MASTER_TOKEN,
+    CONF_REQUEST_TIMEOUT,
     CONF_UPDATE_INTERVAL,
     DATA_CLIENT,
     DATA_COORDINATOR,
@@ -26,6 +27,7 @@ from .const import (
     PLATFORMS,
     SENSOR,
     STARTUP_MESSAGE,
+    TIMEOUT,
     UPDATE_INTERVAL,
 )
 from .types import GoogleHomeConfigEntry
@@ -52,6 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) -
     device_addresses = cast(
         "dict[str, str]", entry.options.get(CONF_DEVICE_ADDRESSES, {})
     )
+    request_timeout = cast("int", entry.options.get(CONF_REQUEST_TIMEOUT, TIMEOUT))
 
     _LOGGER.debug(
         "Coordinator update interval is: %s", timedelta(seconds=update_interval)
@@ -69,6 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) -
         android_id=android_id,
         zeroconf_instance=zeroconf_instance,
         device_addresses=device_addresses,
+        request_timeout=request_timeout,
     )
 
     coordinator = DataUpdateCoordinator(
@@ -115,6 +119,8 @@ async def async_update_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) 
 
     _LOGGER.debug("Options updated, updating coordinator interval...")
     update_interval: int = entry.options.get(CONF_UPDATE_INTERVAL, UPDATE_INTERVAL)
+    request_timeout: int = entry.options.get(CONF_REQUEST_TIMEOUT, TIMEOUT)
+    client.request_timeout = request_timeout
     coordinator: DataUpdateCoordinator[list[GoogleHomeDevice]] = hass.data[DOMAIN][
         entry.entry_id
     ][DATA_COORDINATOR]
@@ -123,3 +129,4 @@ async def async_update_entry(hass: HomeAssistant, entry: GoogleHomeConfigEntry) 
     _LOGGER.debug(
         "Coordinator update interval is: %s", timedelta(seconds=update_interval)
     )
+    _LOGGER.debug("Device request timeout is: %s seconds", request_timeout)

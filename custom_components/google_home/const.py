@@ -15,6 +15,7 @@ MANUFACTURER: Final = "Google Home"
 ATTRIBUTION: Final = "json"
 ISSUE_URL: Final = "https://github.com/leikoilja/ha-google-home/issues"
 CONF_DEVICE_ADDRESSES: Final = "device_addresses"
+CONF_REQUEST_TIMEOUT: Final = "request_timeout"
 CONF_UPDATE_INTERVAL: Final = "update_interval"
 
 DATA_CLIENT: Final = "client"
@@ -80,7 +81,7 @@ API_ENDPOINT_DO_NOT_DISTURB: Final = "setup/assistant/notifications"
 HEADER_CAST_LOCAL_AUTH: Final = "cast-local-authorization-token"
 HEADER_CONTENT_TYPE: Final = "content-type"
 
-TIMEOUT: Final = 2  # Request Timeout in seconds
+TIMEOUT: Final = 10  # Request Timeout in seconds
 
 # TIMESTRINGS
 TIME_STR_FORMAT: Final = "%H:%M:%S"

@@ -3,11 +3,23 @@
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiohttp import ClientSession
 from zeroconf import Zeroconf
 
 from custom_components.google_home.models import GoogleHomeDevice
 
-from .helpers import make_client, make_client_with_addresses
+from .helpers import make_client, make_client_with_addresses, make_client_with_timeout
+
+
+def _successful_request_context() -> MagicMock:
+    """Create an async context manager yielding a successful response."""
+    response = MagicMock()
+    response.status = 200
+    response.json = AsyncMock(return_value={})
+    context = MagicMock()
+    context.__aenter__ = AsyncMock(return_value=response)
+    context.__aexit__ = AsyncMock(return_value=None)
+    return context
 
 
 class TestGetGoogleDevices(IsolatedAsyncioTestCase):
@@ -132,3 +144,43 @@ class TestUpdateGoogleDevicesInformation(IsolatedAsyncioTestCase):
         ]
         assert "exact" in warning.call_args_list[0].args[0].lower()
         assert "spacing" in warning.call_args_list[0].args[0].lower()
+
+
+class TestRequestTimeout(IsolatedAsyncioTestCase):
+    """Test configurable device request timeouts."""
+
+    def test_default_request_timeout_is_ten_seconds(self) -> None:
+        """Clients default to the cross-VLAN-safe timeout."""
+        client, _ = make_client()
+
+        assert client.request_timeout == 10
+
+    def test_configured_request_timeout_is_exposed(self) -> None:
+        """Clients expose a configured positive timeout."""
+        client, _ = make_client_with_timeout(17)
+
+        assert client.request_timeout == 17
+
+    async def test_default_timeout_reaches_aiohttp_request(self) -> None:
+        """The default effective timeout is used at the network boundary."""
+        session = MagicMock(spec=ClientSession)
+        session.request.return_value = _successful_request_context()
+        client, _ = make_client(session=session)
+        device = GoogleHomeDevice("device-1", "Kitchen Speaker", "token", "192.0.2.50")
+
+        with patch("custom_components.google_home.api.ClientTimeout") as client_timeout:
+            await client.request("GET", "setup/status", device)
+
+        client_timeout.assert_called_once_with(total=10)
+
+    async def test_configured_timeout_reaches_aiohttp_request(self) -> None:
+        """A configured effective timeout is used at the network boundary."""
+        session = MagicMock(spec=ClientSession)
+        session.request.return_value = _successful_request_context()
+        client, _ = make_client_with_timeout(17, session=session)
+        device = GoogleHomeDevice("device-1", "Kitchen Speaker", "token", "192.0.2.50")
+
+        with patch("custom_components.google_home.api.ClientTimeout") as client_timeout:
+            await client.request("GET", "setup/status", device)
+
+        client_timeout.assert_called_once_with(total=17)

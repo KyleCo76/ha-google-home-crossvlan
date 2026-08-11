@@ -26,10 +26,12 @@
       "init": {
         "data": {
           "update_interval": "Change update interval. Increase this if you are suffering from devices timing out. Default: 180 (Seconds)",
-          "device_addresses": "Manual device IPv4 addresses"
+          "device_addresses": "Manual device IPv4 addresses",
+          "request_timeout": "Device request timeout (seconds)"
         },
         "data_description": {
-          "device_addresses": "Map each exact Google-reported device name, including case and spacing, to its IPv4 address. A non-empty mapping disables discovery for every device, so map every device you want addressable. Leave the mapping empty to preserve automatic discovery."
+          "device_addresses": "Map each exact Google-reported device name, including case and spacing, to its IPv4 address. A non-empty mapping disables discovery for every device, so map every device you want addressable. Leave the mapping empty to preserve automatic discovery.",
+          "request_timeout": "Timeout for HTTPS requests to each device. Default: 10 seconds."
         }
       }
     },

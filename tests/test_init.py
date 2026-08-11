@@ -14,6 +14,7 @@ from zeroconf import Zeroconf
 from custom_components.google_home import async_setup_entry, async_update_entry
 from custom_components.google_home.const import (
     CONF_DEVICE_ADDRESSES,
+    CONF_REQUEST_TIMEOUT,
     CONF_UPDATE_INTERVAL,
     DATA_CLIENT,
     DATA_COORDINATOR,
@@ -55,7 +56,11 @@ class TestSetupEntry(IsolatedAsyncioTestCase):
         addresses = {"Kitchen Speaker": "192.0.2.50"}
         hass, hass_mock = _make_hass()
         entry = _make_entry(
-            {CONF_UPDATE_INTERVAL: 180, CONF_DEVICE_ADDRESSES: addresses}
+            {
+                CONF_UPDATE_INTERVAL: 180,
+                CONF_DEVICE_ADDRESSES: addresses,
+                CONF_REQUEST_TIMEOUT: 17,
+            }
         )
         session = MagicMock(spec=ClientSession)
         zeroconf_instance = MagicMock(spec=Zeroconf)
@@ -90,6 +95,7 @@ class TestSetupEntry(IsolatedAsyncioTestCase):
             android_id="android-id",
             zeroconf_instance=zeroconf_instance,
             device_addresses=addresses,
+            request_timeout=17,
         )
         hass_mock.config_entries.async_forward_entry_setups.assert_awaited_once()
 
@@ -106,10 +112,12 @@ class TestUpdateEntry(IsolatedAsyncioTestCase):
             {
                 CONF_UPDATE_INTERVAL: 240,
                 CONF_DEVICE_ADDRESSES: {"Kitchen Speaker": "192.0.2.51"},
+                CONF_REQUEST_TIMEOUT: 17,
             }
         )
         client = MagicMock()
         client.device_addresses = {"Kitchen Speaker": "192.0.2.50"}
+        client.request_timeout = 10
         coordinator = MagicMock(spec=DataUpdateCoordinator)
         original_interval = timedelta(seconds=180)
         coordinator.update_interval = original_interval
@@ -128,6 +136,7 @@ class TestUpdateEntry(IsolatedAsyncioTestCase):
             entry.entry_id
         )
         assert coordinator.update_interval is original_interval
+        assert client.request_timeout == 10
 
     async def test_unchanged_mapping_updates_interval_without_reload(self) -> None:
         """Polling-only changes retain the existing in-place update path."""
@@ -153,3 +162,34 @@ class TestUpdateEntry(IsolatedAsyncioTestCase):
 
         hass_mock.config_entries.async_schedule_reload.assert_not_called()
         assert coordinator.update_interval == timedelta(seconds=240)
+
+    async def test_timeout_only_change_updates_client_without_reload(self) -> None:
+        """Timeout-only changes use the in-place client update path."""
+        addresses = {"Kitchen Speaker": "192.0.2.50"}
+        hass, hass_mock = _make_hass()
+        entry = _make_entry(
+            {
+                CONF_UPDATE_INTERVAL: 180,
+                CONF_DEVICE_ADDRESSES: addresses,
+                CONF_REQUEST_TIMEOUT: 17,
+            }
+        )
+        client = MagicMock()
+        client.device_addresses = addresses.copy()
+        client.request_timeout = 10
+        coordinator = MagicMock(spec=DataUpdateCoordinator)
+        coordinator.update_interval = timedelta(seconds=180)
+        hass.data = {
+            DOMAIN: {
+                entry.entry_id: {
+                    DATA_CLIENT: client,
+                    DATA_COORDINATOR: coordinator,
+                }
+            }
+        }
+
+        await async_update_entry(hass, entry)
+
+        hass_mock.config_entries.async_schedule_reload.assert_not_called()
+        assert client.request_timeout == 17
+        assert coordinator.update_interval == timedelta(seconds=180)
